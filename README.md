@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AI Guardrails for Educational Agents — Workshop
 
 A 90-minute hands-on workshop on building multilayered guardrails for LLM-powered educational agents.
@@ -134,6 +133,3 @@ workshop/
 | `safe_output_filter` | Output | both agents | Harmful content in responses |
 
 **Classifier model:** `gemma3:1b` — dedicated lightweight model for all guardrail classification calls, separate from the main `qwen3.5:4b` agent model.
-=======
-# AI-Education-Hackathon
->>>>>>> 417ab007521fdb3b3d92db33c78c983a6685b4b8
