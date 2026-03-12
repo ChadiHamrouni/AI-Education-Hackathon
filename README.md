@@ -81,19 +81,6 @@ python main.py
 
 ---
 
-## Building the Slides
-
-Requires Node.js.
-
-```bash
-# HTML (recommended for presenting)
-npx @marp-team/marp-cli slides/deck.md --html -o slides/deck.html
-
-# PDF
-npx @marp-team/marp-cli slides/deck.md --pdf -o slides/deck.pdf
-```
-
----
 
 ## Project Structure
 
