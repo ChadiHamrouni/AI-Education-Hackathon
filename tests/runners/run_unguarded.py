@@ -17,9 +17,14 @@ async def run_unguarded(test_cases: list[dict], title: str, subtitle: str) -> No
     ))
     console.print()
 
+    passed = 0
+    failed = 0
+
     for i, case in enumerate(test_cases, 1):
         console.rule(f"[bold]Test {i}: {case['label']}[/bold]")
         console.print(f"[cyan]Input:[/cyan]     {case['input']}")
+        expected = case.get("expected_block")
+        console.print(f"[cyan]Expects:[/cyan]   {'BLOCKED — guardrail should fire' if expected else 'PASS — no block expected'}")
         if "watch_for" in case:
             console.print(f"[bold red]Watch for:[/bold red] {case['watch_for']}")
         console.print(f"[dim]{case['note']}[/dim]")
@@ -34,15 +39,30 @@ async def run_unguarded(test_cases: list[dict], title: str, subtitle: str) -> No
                 title=f"[yellow]{result.last_agent.name}[/yellow]",
                 border_style="yellow",
             ))
+            # If we expected a block but nothing blocked → FAIL
+            if expected:
+                failed += 1
+                console.print(f"[bold red]✗ FAIL — MISSED[/bold red] — '{expected}' should have blocked this")
+            else:
+                passed += 1
+                console.print(f"[bold green]✓ PASS[/bold green] — no block expected, none fired")
         except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+            # Any exception = agent was stopped (unexpected in unguarded mode, but counts as blocked)
+            if expected:
+                passed += 1
+                console.print(f"[bold green]✓ PASS[/bold green] — blocked as expected")
+            else:
+                failed += 1
+                console.print(f"[bold red]✗ FAIL — unexpected block: {e}[/bold red]")
 
         console.print()
 
+    total = len(test_cases)
+    color = "green" if failed == 0 else "red"
     console.print(Panel.fit(
-        "[bold yellow]SUMMARY — What just happened[/bold yellow]\n\n"
-        "No input was filtered. No output was validated.\n"
-        "Off-topic and unsafe inputs went straight through.\n\n"
-        "[bold]Now run the guarded version →[/bold]",
-        border_style="yellow",
+        f"[bold {color}]RESULTS: {passed}/{total} passed[/bold {color}]\n\n"
+        + ("No input was filtered. No output was validated.\n"
+           "Off-topic and unsafe inputs went straight through.\n\n"
+           "[bold]Now run the guarded version →[/bold]"),
+        border_style=color,
     ))

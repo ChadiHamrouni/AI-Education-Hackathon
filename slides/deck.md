@@ -166,11 +166,11 @@ Building a Multilayered Safety Net for an LLM Physics Tutor
 
 ### Local Models — Ollama
 `https://ollama.com`
-`ollama pull qwen3.5:4b` · `ollama pull llama3.2`
+`ollama pull qwen3.5:4b` · `ollama pull llama3.2:3b`
 
 ```bash
 pip install -r requirements.txt
-ollama pull qwen3.5:4b && ollama pull llama3.2
+ollama pull qwen3.5:4b && ollama pull llama3.2:3b
 python demo.py --mode guarded
 ```
 
@@ -329,27 +329,30 @@ print(result.final_output)   # "42 + 58 = 100"
 
 ---
 
-## SDK: Catching Guardrail Exceptions
+## SDK: Attaching Guardrails to an Agent
+
+Guardrails are just lists passed into the `Agent` definition.
 
 ```python
-from agents import (
-    Runner,
-    InputGuardrailTripwireTriggered,
-    OutputGuardrailTripwireTriggered,
+# Input guardrails — run before the agent sees the message
+triage_agent = Agent(
+    name="Physics Tutor",
+    instructions="...",
+    input_guardrails=[topic_classifier, safety_filter, injection_filter],
+    model=main_model,
 )
 
-try:
-    result = await Runner.run(triage_agent, input=user_query)
-    print(result.final_output)
-
-except InputGuardrailTripwireTriggered as e:
-    info = e.guardrail_result.output.output_info
-    print("Blocked:", info["message"])
-
-except OutputGuardrailTripwireTriggered as e:
-    info = e.guardrail_result.output.output_info
-    print("Output blocked:", info["message"])
+# Output guardrail — runs after the agent produces a response
+computation_agent = Agent(
+    name="Computation Agent",
+    instructions="...",
+    output_guardrails=[safe_output_filter],
+    model=main_model,
+)
 ```
+
+> If a guardrail fires, the SDK raises an exception and the response never reaches the user.
+> We'll see exactly how guardrails are built in Part 8.
 
 ---
 
@@ -370,7 +373,7 @@ except OutputGuardrailTripwireTriggered as e:
 | Component | Choice |
 |-----------|--------|
 | Main model | `qwen3.5:4b` — local via Ollama |
-| Classifier | `llama3.2` — local, dedicated, lightweight |
+| Classifier | `llama3.2:3b` — local, dedicated, lightweight |
 | Tools | `calculate` · `convert_units` · `web_search` |
 | SDK | OpenAI Agents SDK |
 
@@ -427,6 +430,20 @@ Guardrails on a highway **don't drive the car** — they **prevent catastrophic 
 | **Safety** | No harmful output | Student sees dangerous content |
 | **Reliability** | Consistent correct behavior | Student learns wrong physics |
 | **Groundedness** | Answers backed by tools | Hallucinations presented as fact |
+
+---
+
+## Two Types of Guardrails
+
+| | **Rule-Based** | **LLM-Based** |
+|---|---|---|
+| **How** | Regex, keyword lists, length checks | Small classifier Agent → YES / NO |
+| ✅ | Zero latency, deterministic, free | Understands intent, handles paraphrasing |
+| ❌ | Brittle — easy to rephrase around | Adds latency, costs tokens |
+| **Use when** | Block known bad patterns fast | Context matters, rules won't hold |
+| **Example** | Profanity filter, length limit | Topic check, injection detection |
+
+> In this workshop — all our guardrails are **LLM-based** using a dedicated `llama3.2:3b` classifier.
 
 ---
 
@@ -632,21 +649,21 @@ triage_agent = Agent(
 
 ## Demo
 
-### Phase 1 — No Guardrails
+### Phase 1 — No Guardrails (test_case_1)
 
-Same tools available, no safety net. Watch what gets through.
+Same tools, no safety net. Watch the failures — PASS/FAIL scored.
 
 ```bash
-python demo.py --mode unguarded
+python demo.py --mode unguarded           # test_case_1 (5 cases, no guardrails)
 ```
 
-### Phase 2 — Full Guardrail System
+### Phase 2 — Full Guardrail System (test_case_1 + test_case_2)
 
-PASS / FAIL scoring — same inputs, now protected.
+Same inputs now protected. Every run is PASS/FAIL scored.
 
 ```bash
-python demo.py --mode guarded --cases 1   # same 5 inputs, now guarded
-python demo.py --mode guarded             # full 13-case suite
+python demo.py --mode guarded --cases 1  # test_case_1 through the guardrail system
+python demo.py --mode guarded            # all cases — test_case_1 + test_case_2
 ```
 
 ---
@@ -706,7 +723,7 @@ User input
     │
     ▼
 ┌─────────────────────────────────────────────┐
-│  TIER 2 — LLM classifier  (llama3.2)         │
+│  TIER 2 — LLM classifier  (llama3.2:3b)         │
 │  Only runs when Tier 1 is not confident     │
 │  SAFE   ──────────────────────────────────► PASS
 │  UNSAFE ──────────────────────────────────► BLOCK
