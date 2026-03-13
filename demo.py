@@ -2,10 +2,10 @@
 Physics Tutor Demo — guarded and unguarded modes in one file.
 
 Usage:
-  python demo.py --mode unguarded          # test_case_1, no guardrails (Phase 1)
-  python demo.py --mode guarded --cases 1  # test_case_1 through the guardrail system
-  python demo.py --mode guarded --cases 2  # test_case_2 only
-  python demo.py --mode guarded            # all cases — test_case_1 + test_case_2
+  python demo.py --mode unguarded --cases 1  # test_case_1, no guardrails (Phase 1)
+  python demo.py --mode guarded --cases 1    # test_case_1 through the guardrail system (Phase 2)
+  python demo.py --mode guarded --cases 2    # test_case_2 only
+  python demo.py --mode guarded              # all cases — test_case_1 + test_case_2
 """
 
 import argparse

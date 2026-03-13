@@ -649,21 +649,26 @@ triage_agent = Agent(
 
 ## Demo
 
-### Phase 1 — No Guardrails (test_case_1)
+### Phase 1 — No Guardrails
 
-Same tools, no safety net. Watch the failures — PASS/FAIL scored.
+Same 5 inputs. Same tools. No safety net.
 
 ```bash
-python demo.py --mode unguarded           # test_case_1 (5 cases, no guardrails)
+python demo.py --mode unguarded --cases 1   # test_case_1, no guardrails
 ```
 
-### Phase 2 — Full Guardrail System (test_case_1 + test_case_2)
+### Phase 2 — Same Inputs, Now Guarded
 
-Same inputs now protected. Every run is PASS/FAIL scored.
+**Identical test_case_1** — the only difference is the guardrail system.
 
 ```bash
 python demo.py --mode guarded --cases 1  # test_case_1 through the guardrail system
-python demo.py --mode guarded            # all cases — test_case_1 + test_case_2
+```
+
+### Bonus — Full 13-Case Suite
+
+```bash
+python demo.py --mode guarded            # test_case_1 + test_case_2
 ```
 
 ---
