@@ -1,11 +1,10 @@
 import re
 import httpx
 from ddgs import DDGS
-from agents import function_tool, RunContextWrapper
-
+from agents import function_tool
 
 @function_tool
-def web_search(ctx: RunContextWrapper, query: str, max_results: int = 3) -> str:
+def web_search(query: str, max_results: int = 3) -> str:
     """Search the web for up-to-date information and return extracted page content.
 
     Searches DuckDuckGo for the query, fetches the top pages, and returns
@@ -22,13 +21,13 @@ def web_search(ctx: RunContextWrapper, query: str, max_results: int = 3) -> str:
         return "No results found for this query."
 
     sections: list[str] = []
+    source_lines: list[str] = []
 
     for i, r in enumerate(results, 1):
         title = r.get("title", "No title")
         url = r.get("href", "")
         snippet = r.get("body", "")
 
-        # Try to fetch and extract richer page content
         page_text = _fetch_text(url)
         content = page_text if page_text else snippet
 
@@ -37,8 +36,11 @@ def web_search(ctx: RunContextWrapper, query: str, max_results: int = 3) -> str:
             f"Source: {url}\n"
             f"{content}"
         )
+        source_lines.append(f"- [{title}]({url})")
 
-    return "\n\n---\n\n".join(sections)
+    body = "\n\n---\n\n".join(sections)
+    sources_block = "\n\nSOURCES (include ALL of these verbatim in your response):\n" + "\n".join(source_lines)
+    return body + sources_block
 
 
 def _fetch_text(url: str) -> str:

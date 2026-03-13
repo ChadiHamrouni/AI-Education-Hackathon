@@ -1,7 +1,7 @@
 # AI Guardrails for Educational Agents — Workshop
 
 A 90-minute hands-on workshop on building multilayered guardrails for LLM-powered educational agents.
-Demo: a math teaching assistant with guaranteed tool use, injection protection, and safe output filtering.
+Demo: a physics teaching assistant with guaranteed tool use, injection protection, and safe output filtering.
 
 ---
 
@@ -26,11 +26,11 @@ ollama --version
 ### 2. Pull the models
 
 ```bash
-# Main model — math tutor agent (4B, ~2.5 GB)
+# Main model — physics tutor agent (4B, ~2.5 GB)
 ollama pull qwen3.5:4b
 
 # Classifier model — input/output guardrails (1B, ~700 MB)
-ollama pull gemma3:1b
+ollama pull llama3.2
 ```
 
 ### 3. Create a virtual environment (recommended)
@@ -68,42 +68,63 @@ ollama serve
 
 All commands run from the `workshop/` directory.
 
+### Single entry point — `demo.py`
+
 ```bash
-# Phase 1: Unguarded agent — shows failure modes (wrong answers, no restrictions)
-python demo_no_guardrails.py
+# Phase 1: Unguarded — same tools, no guardrails. Watch what gets through.
+python demo.py --mode unguarded
 
-# Phase 3: Full guardrail pipeline — shows safe, verified, blocked behavior
-python demo_with_guardrails.py
+# Phase 2: Guarded — run test_case_1 through the full guardrail system.
+python demo.py --mode guarded --cases 1
 
-# Interactive REPL — try your own inputs
-python main.py
+# Full 13-case guardrail test suite (PASS/FAIL scoring)
+python demo.py --mode guarded           # defaults to --cases 2
+
+# Mix & match
+python demo.py --mode guarded --cases 2
+python demo.py --mode unguarded --cases 2
 ```
 
----
+### Test case files
 
+| File | `--cases` | Contents |
+|------|-----------|----------|
+| `tests/cases/test_case_1.py` | `--cases 1` | 5 cases that expose real failures (unguarded demo) |
+| `tests/cases/test_case_2.py` | `--cases 2` | 13 PASS/FAIL guardrail tests |
+
+---
 
 ## Project Structure
 
 ```
 workshop/
 ├── slides/
-│   └── deck.md                  # Marp slide deck
+│   ├── deck.md                  # Marp slide deck source
+│   └── deck.pdf                 # Exported slides
 ├── src/
-│   ├── config.py                # Model names, Ollama base URL, get_model()
+│   ├── config.py                # Models, Ollama base URL, temperature constants
 │   ├── tools/
-│   │   ├── arithmetic.py        # add, subtract, multiply, divide
-│   │   ├── calculus.py          # derivative, integral (SymPy)
-│   │   └── web_search.py        # web_search (DuckDuckGo + httpx)
+│   │   ├── calculate.py         # calculate tool (add/subtract/multiply/divide)
+│   │   ├── convert_units.py     # convert_units tool (km/miles, kg/lbs, etc.)
+│   │   └── web_search.py        # web_search tool (DuckDuckGo + httpx)
 │   ├── guardrails/
 │   │   ├── input_guards.py      # topic_classifier, safety_filter, injection_filter
-│   │   └── output_guards.py     # MathRunContext, tool_use_enforcement, safe_output_filter
+│   │   └── output_guards.py     # safe_output_filter
 │   └── agents/
-│       ├── computation_agent.py # Solver: tool_choice=required + output guardrails
-│       ├── conceptual_agent.py  # Explainer: web_search + safe output filter
-│       └── triage_agent.py      # Router: all input guardrails + handoffs
-├── demo_no_guardrails.py        # Phase 1 demo
-├── demo_with_guardrails.py      # Phase 3 demo
-├── main.py                      # Interactive REPL
+│       ├── computation_agent.py # tool_choice=required + output guardrail
+│       ├── conceptual_agent.py  # web_search + safe output filter
+│       ├── triage_agent.py      # router: all input guardrails + handoffs
+│       └── unguarded_agents.py  # mirror pipeline with no guardrails
+├── tests/
+│   ├── cases/
+│   │   ├── test_case_1.py       # Unguarded demo cases (5 failure scenarios)
+│   │   └── test_case_2.py       # Guardrail test suite (13 PASS/FAIL cases)
+│   ├── runners/
+│   │   ├── run_guarded.py       # PASS/FAIL scorer for guardrail tests
+│   │   └── run_unguarded.py     # Unguarded runner with watch-for labels
+│   └── helpers/
+│       └── trace.py             # Shared trace printing helpers
+├── demo.py                      # Single entry point for all demos
 └── requirements.txt
 ```
 
@@ -115,8 +136,11 @@ workshop/
 |-----------|------|-------|--------|
 | `topic_classifier` | Input | `triage_agent` | Off-topic questions |
 | `safety_filter` | Input | `triage_agent` | Harmful/illegal requests |
-| `injection_filter` | Input | `triage_agent` | Prompt injection attempts |
-| `tool_use_enforcement` | Output | `computation_agent` | Math answers without tool calls |
+| `injection_filter` | Input | `triage_agent` | Prompt injection + recon attacks |
 | `safe_output_filter` | Output | both agents | Harmful content in responses |
 
-**Classifier model:** `gemma3:1b` — dedicated lightweight model for all guardrail classification calls, separate from the main `qwen3.5:4b` agent model.
+**Tool enforcement:** `computation_agent` uses `ModelSettings(tool_choice="required")` — the API rejects any response that doesn't call a tool.
+
+**Models:**
+- Main agent: `qwen3.5:4b` (via Ollama)
+- Classifiers: `llama3.2` — dedicated lightweight model, temperature `0.0` for deterministic results

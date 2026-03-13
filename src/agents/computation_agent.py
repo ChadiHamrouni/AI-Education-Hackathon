@@ -1,32 +1,31 @@
 from agents import Agent, ModelSettings
-from src.config import get_model
-from src.tools import all_math_tools
-from src.guardrails.output_guards import tool_use_enforcement, safe_output_filter
+
+from src.config import main_model, AGENT_TEMPERATURE
+from src.tools.calculate import calculate
+from src.tools.convert_units import convert_units
+from src.guardrails.output_guards import safe_output_filter
 
 COMPUTATION_INSTRUCTIONS = """
-You are a math computation engine for a teaching assistant.
+You are a computation engine for a teaching assistant.
 Your sole job: compute the answer using the provided tools, then explain the result clearly.
 
 ## Rules
 - You MUST call a tool for every computation. No mental math. No estimates.
-- After the tool returns a result, show it to the student and explain what it means.
+- For multi-step problems, call tools sequentially — use the output of one tool as input to the next.
+- After all tools have returned results, show the steps and explain what the final answer means.
 - Keep explanations concise — one paragraph maximum.
 - Do not explain theory or concepts. If the student wants theory, they will ask separately.
 
 ## Available Tools
-- add(a, b), subtract(a, b), multiply(a, b), divide(a, b) — arithmetic
-- derivative(expression, variable) — symbolic differentiation via SymPy
-- integral(expression, variable) — symbolic integration via SymPy
-""".strip()
-
+- calculate(operation, a, b) — arithmetic: add, subtract, multiply, divide
+- convert_units(value, from_unit, to_unit) — unit conversions: km<->miles, kg<->lbs, meters<->feet, liters<->gallons
+"""
 
 computation_agent = Agent(
     name="Computation Engine",
     instructions=COMPUTATION_INSTRUCTIONS,
-    tools=all_math_tools,
-    # Hard API-level constraint: the model cannot produce a response without calling a tool.
-    # This is not a prompt suggestion — the API will reject a plain-text response.
-    model_settings=ModelSettings(tool_choice="required"),
-    output_guardrails=[tool_use_enforcement, safe_output_filter],
-    model=get_model(),
+    tools=[calculate, convert_units],
+    model_settings=ModelSettings(tool_choice="required", temperature=AGENT_TEMPERATURE),
+    output_guardrails=[safe_output_filter],
+    model=main_model,
 )
